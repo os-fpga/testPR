@@ -90,18 +90,6 @@ jobs:
         which $CC && $CC --version
         which $CXX && $CXX --version
         echo -e "Production devices are\n\t${{ env.p_devices }}"
-    - name: free disk space
-      run: |
-        du -sch *
-        df -h
-        sudo swapoff -a
-        sudo rm -f /swapfile
-        sudo apt clean
-        docker rmi $(docker image ls -aq)
-        sudo apt-get autoremove -y >/dev/null 2>&1
-        sudo apt-get autoclean -y >/dev/null 2>&1
-        sudo rm -rf /usr/local/lib/android >/dev/null 2>&1
-        df -h
     - name: Test Release
       if: matrix.mode == 'test'
       run: |
@@ -120,7 +108,7 @@ jobs:
     - name: test/solver
       if: matrix.mode == 'solver'
       run: |
-        echo ${{ github.event }}
+        echo ${{ github.event_name }}
         #make CPU_CORES=2 solver/tests 
     - name: Regression
       if: matrix.mode == 'regression'
@@ -158,7 +146,7 @@ jobs:
         df -h
         du -sch *
     - name: Add and Push
-      if: "${{ matrix.mode == 'solver' && github.event == 'repository_dispatch' }}"
+      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}"
       run: |
           git config --local user.email "pu.engineerg+nadeemyaseen@gmail.com"
           git config --local user.name "NadeemYaseen"
@@ -168,7 +156,7 @@ jobs:
           git merge -Xtheirs origin_pub/main  -m "merging opensource Raptor main branch"
           git push origin --set-upstream pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
     - name: Create PR if solver test pass
-      if: "${{ matrix.mode == 'solver' && github.event == 'repository_dispatch' }}" 
+      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}" 
       run: |
             gh pr create -B main \
             -H pub_raptor_changes_${{ github.event.client_payload.commitSHA }}   \
