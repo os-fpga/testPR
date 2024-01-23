@@ -1,38 +1,207 @@
-# This is a basic workflow to help you get started with Actions
+name: 'main'
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-
-  # Allows you to run this workflow manually from the Actions tab
+  pull_request:
+  repository_dispatch:
+    types: [raptor_pub_update]
   workflow_dispatch:
+    inputs:
+      Release_Date:
+        description: 'Release date of Raptor in format YYYY.MM'
+        default: ""
+        type: string
+      Production_Devices:
+        description: 'Name of production devices separated by comma'
+        default: ""
+        type: string
+env:
+    PRODUCTION_DEVICES: "Nad1"  # comma separated devices name
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  linux-gcc:
+    name: ubuntu-${{ matrix.mode }}
+
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+        - test
+        - test/batch
+        - test/batch_gen2
+        - regression
+#        - coverage
+        - install
+        - valgrind
+        - production
+        - solver
+    env:
+      MODE: ${{ matrix.mode }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v3
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: |
-              cat /etc/passwd
-              echo $USER
-              pwd
-              groups
-              id
+    - name: ssh-agent
+      uses: webfactory/ssh-agent@v0.7.0
+      with: 
+        ssh-private-key: |
+           ${{ secrets.SSH_PRIVATE_KEY_FOEDAG }}
+#          ${{ secrets.SSH_PRIVATE_KEY_VERIFIC_RS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_OPENFPGA }}          
+#          ${{ secrets.SSH_PRIVATE_KEY_TCL }}
+#          ${{ secrets.SSH_PRIVATE_KEY_YOSYS_VERIFIC }}
+#          ${{ secrets.SSH_PRIVATE_KEY_RTL_BENCH }}
+#          ${{ secrets.SSH_PRIVATE_KEY_YOSYS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_YOSYS_PLUGINS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_ABC }}
+#          ${{ secrets.SSH_PRIVATE_KEY_LOGIC_SYNTH }}
+#          ${{ secrets.SSH_PRIVATE_KEY_JIRA_TESTCASE }}
+#          ${{ secrets.SSH_PRIVATE_KEY_LITEX_RS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_TOOLS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_RAPTOR_TOOLS }}
+#          ${{ secrets.SSH_PRIVATE_KEY_IP_CATALOG }}
+#          ${{ secrets.SSH_PRIVATE_KEY_BACKEND }}
+#          ${{ secrets.SSH_PRIVATE_KEY_EMBEDDED_COMMON_DEV }}
+#          ${{ secrets.SSH_PRIVATE_KEY_U_BOOT_DEV }}
+#          ${{ secrets.SSH_PRIVATE_KEY_ZEPHYR_DEV }}
+#          ${{ secrets.SSH_PRIVATE_KEY_OPENFPGA_PD_CASTOR_RS }}
+#          ${{ secrets.SSH_RS_FPGA_PRIMITIVES }}
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        echo "install dependencies"
+#        bash .github/workflows/install_litex_ubuntu.sh
+
+    - name: Use ccache
+      uses: hendrikmuhs/ccache-action@v1.2.3
+      with:
+        key: linux-${{ matrix.mode }}
+
+    - name: Configure shell
+      run: |
+        echo 'CC=gcc-11' >> $GITHUB_ENV
+        echo 'CXX=g++-11' >> $GITHUB_ENV
+        echo 'PATH=/usr/lib/ccache:'"$PATH" >> $GITHUB_ENV
+        echo 'PREFIX=/tmp/raptor_gui-install' >> $GITHUB_ENV
+        echo "$PREFIX" >> $GITHUB_PATH
+        echo "ADDITIONAL_CMAKE_OPTIONS='-DMY_CXX_WARNING_FLAGS="-W -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Werror -UNDEBUG"'" >> $GITHUB_ENV
+        echo 'RULE_MESSAGES=off' >> $GITHUB_ENV
+        echo 'LC_ALL=en_US.utf-8' >> $GITHUB_ENV
+        echo 'LANG=en_US.utf-8' >> $GITHUB_ENV
+        event_type=`echo ${{ github.event_name }}`
+        if [ $event_type == 'workflow_dispatch' ]
+        then
+              echo 'p_devices="${{ inputs.Production_Devices }}"' >> $GITHUB_ENV
+        else
+              echo 'p_devices="$PRODUCTION_DEVICES"' >> $GITHUB_ENV
+        fi
+    - name: Show shell configuration
+      run: |
+        env
+        which cmake && cmake --version
+        which make && make --version
+        which swig && swig -version
+        which python && python --version
+        which ninja && ninja --version
+        which tclsh && echo 'puts [info patchlevel];exit 0' | tclsh
+        which $CC && $CC --version
+        which $CXX && $CXX --version
+        echo -e "Production devices are\n\t${{ env.p_devices }}"
+    - name: free disk space
+      run: |
+        du -sch *
+        df -h
+        sudo swapoff -a
+        sudo rm -f /swapfile
+        sudo apt clean
+        docker rmi $(docker image ls -aq)
+        sudo apt-get autoremove -y >/dev/null 2>&1
+        sudo apt-get autoclean -y >/dev/null 2>&1
+        sudo rm -rf /usr/local/lib/android >/dev/null 2>&1
+        df -h
+    - name: Test Release
+      if: matrix.mode == 'test'
+      run: |
+        echo ""
+        #make release CPU_CORES=2 ADDITIONAL_CMAKE_OPTIONS=-DBUILD_YOSYS_PLUGINS=ON test
+    - name: test/batch Release
+      if: matrix.mode == 'test/batch'
+      run: |
+        echo ""
+        #make release CPU_CORES=2 test/batch 
+    - name: test/batch_gen2 Release
+      if: matrix.mode == 'test/batch_gen2'
+      run: |
+        echo ""
+        #make release CPU_CORES=2 test/batch_gen2
+    - name: test/solver
+      if: matrix.mode == 'solver'
+      run: |
+        echo ${{ github.event }}
+        #make CPU_CORES=2 solver/tests 
+    - name: Regression
+      if: matrix.mode == 'regression'
+      run: |
+        echo ""
+        #make regression CPU_CORES=2
+    - name: Coverage
+      if: matrix.mode == 'coverage'
+      run: |
+        echo ""
+        #make debug CPU_CORES=2 coverage-build/raptor_gui.coverage
+    - name: Production
+      if: matrix.mode == 'production'
+      run: |
+        echo ""
+        #make release CPU_CORES=2 PRODUCTION_BUILD=0 PRODUCTION_DEVICES=${{ env.p_devices }} STICK_RELEASE_VERSION=$r_d
+        #./build/bin/raptor --version
+        #TODO enable it again to restore license
+        #./build/bin/Flex_LM/lmutil lmhostid
+        #export LM_LICENSE_FILE=${GITHUB_WORKSPACE}/.github/bin/.raptor.lic
+        #d_test=$(echo "${{ env.p_devices }}" | cut -d ',' -f 1)
+        #./build/bin/raptor --batch --mute --script tests/tcl_examples/and2_verilog/run_raptor.tcl --device MPW1
+    - name: Valgrind & Debug
+      if: matrix.mode == 'valgrind'
+      run: |
+        echo ""
+    - name: Install Test
+      if: matrix.mode == 'install'
+      run: |
+        echo ""
+
+    - name: Print server resource
+      if: success() || failure()
+      run: |
+        df -h
+        du -sch *
+    - name: Add and Push
+      if: "${{ matrix.mode == 'solver' && github.event == 'repository_dispatch' }}"
+      run: |
+          git config --local user.email "pu.engineerg+nadeemyaseen@gmail.com"
+          git config --local user.name "NadeemYaseen"
+          git remote add  origin_pub  https://github.com/os-fpga/Raptor.git
+          git checkout -b pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
+          git fetch origin_pub main
+          git merge -Xtheirs origin_pub/main  -m "merging opensource Raptor main branch"
+          git push origin --set-upstream pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
+    - name: Create PR if solver test pass
+      if: "${{ matrix.mode == 'solver' && github.event == 'repository_dispatch' }}" 
+      run: |
+            gh pr create -B main \
+            -H pub_raptor_changes_${{ github.event.client_payload.commitSHA }}   \
+            -a NadeemYaseen -r alaindargelas  \
+            -l "opensource_Raptor_sync"  \
+            --title 'Pulling os-fpga/Raptor update till commit SHA ${{ github.event.client_payload.commitSHA }} into nuelink-semi/Raptor main.' \
+            --body 'An automated PR to check in updates from os-fpga/Raptor. See CI results at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}     
