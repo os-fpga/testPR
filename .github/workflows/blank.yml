@@ -150,17 +150,22 @@ jobs:
       run: |
         df -h
         du -sch *
-    - name: Add and Push
+    - name: Add the changes
       if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}"
       run: |
-          git config --local user.email "pu.engineerg+nadeemyaseen@gmail.com"
-          git config --local user.name "NadeemYaseen"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git remote add  origin_pub  https://github.com/os-fpga/testlic1.git
           git checkout -b pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
           git fetch origin_pub main
           git merge -Xtheirs origin_pub/main  -m "merging opensource Raptor main branch"
-          git remote -v
-          git push origin --set-upstream pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
+
+    - name: Push the changes
+      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}"
+      uses: ad-m/github-push-action@master
+      with:
+        branch: pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
+        
     - name: Create PR if solver test pass
       if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}" 
       run: |
