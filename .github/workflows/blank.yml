@@ -24,9 +24,6 @@ concurrency:
 
 jobs:
   linux-gcc:
-    permissions:
-      contents: read
-      pull-requests: write
     name: ubuntu-${{ matrix.mode }}
 
     runs-on: ubuntu-latest
@@ -173,7 +170,7 @@ jobs:
       run: |
             gh pr create -B main \
             -H pub_raptor_changes_${{ github.event.client_payload.commitSHA }}   \
-            -a NadeemYaseen -r alaindargelas  \
+            -a NadeemYaseen -r NadeemYaseen \
             -l "opensource_Raptor_sync"  \
             --title 'Pulling os-fpga/Raptor update till commit SHA ${{ github.event.client_payload.commitSHA }} into nuelink-semi/Raptor main.' \
             --body 'An automated PR to check in updates from os-fpga/Raptor. See CI results at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
