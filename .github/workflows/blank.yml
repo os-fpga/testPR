@@ -55,6 +55,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        jq --version
         echo "install dependencies"
 #        bash .github/workflows/install_litex_ubuntu.sh
 
