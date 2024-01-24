@@ -1,0 +1,3 @@
+[submodule "Virtual-FPGA-Lab"]
+	path = Virtual-FPGA-Lab
+	url = git@github.com:os-fpga/Virtual-FPGA-Lab.git
