@@ -150,7 +150,7 @@ jobs:
       run: |
           git config --local user.email "pu.engineerg+nadeemyaseen@gmail.com"
           git config --local user.name "NadeemYaseen"
-          git remote add  origin_pub  https://github.com/os-fpga/Raptor.git
+          git remote add  origin_pub  https://github.com/os-fpga/testlic1.git
           git checkout -b pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
           git fetch origin_pub main
           git merge -Xtheirs origin_pub/main  -m "merging opensource Raptor main branch"
