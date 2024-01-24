@@ -1,5 +1,5 @@
-BASE_DIR=/home/users/nadeem.yaseen/put_license
-REPO_LIST="RapidSilicon/testlic1 RapidSilicon/testlic2 RapidSilicon/testlic3"
+BASE_DIR=$HOME/put_license
+REPO_LIST="testlic1 testlic2 testlic3"
 for repo in $REPO_LIST
 do	
 	echo "======================================="
