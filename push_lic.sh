@@ -15,6 +15,7 @@ do
 	gh pr create -B $base_b -H push_license -a nadeemyaseen-rs -r ravic-rs --title 'Pushing License' --body 'An automated PR to check in GPL license copy'
 done
 
+echo "Done"
 
 
 
