@@ -1,7 +1,3 @@
-
-
-
-
 BASE_DIR=$HOME/put_license
 REPO_LIST="testlic1 testlic2 testlic3"
 for repo in $REPO_LIST
