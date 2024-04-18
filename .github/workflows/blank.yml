@@ -3,8 +3,6 @@ name: 'main'
 on:
   push:
   pull_request:
-  repository_dispatch:
-    types: [raptor_pub_update]
   workflow_dispatch:
     inputs:
       Release_Date:
@@ -149,32 +147,4 @@ jobs:
       if: success() || failure()
       run: |
         df -h
-        du -sch *
-    - name: Add the changes
-      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}"
-      run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git remote add  origin_pub  https://github.com/os-fpga/testlic1.git
-          git checkout -b pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
-          git fetch origin_pub main
-          git merge -Xtheirs origin_pub/main  -m "merging opensource Raptor main branch"
-
-    - name: Push the changes
-      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}"
-      uses: ad-m/github-push-action@master
-      with:
-        branch: pub_raptor_changes_${{ github.event.client_payload.commitSHA }}
-        ssh: true
-        
-    - name: Create PR if solver test pass
-      if: "${{ matrix.mode == 'solver' && github.event_name == 'repository_dispatch' }}" 
-      run: |
-            gh pr create -B main \
-            -H pub_raptor_changes_${{ github.event.client_payload.commitSHA }}   \
-            -a NadeemYaseen -r NadeemYaseen  \
-            -l "opensource_Raptor_sync"  \
-            --title 'Pulling os-fpga/Raptor update till commit SHA ${{ github.event.client_payload.commitSHA }} into nuelink-semi/Raptor main.' \
-            --body 'An automated PR to check in updates from os-fpga/Raptor. See CI results at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
-      env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}     
+        du -sch *   
